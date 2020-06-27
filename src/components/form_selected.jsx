@@ -56,10 +56,9 @@ class FormSelected extends Component {
         value: "polygon",
       };
     }
-    console.log("value", value);
-
     this.props.onChangeTypeDraw(value);
   };
+
   render() {
     const { classes } = this.props;
     return (

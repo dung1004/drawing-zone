@@ -9,9 +9,7 @@ class App extends Component {
       data: {
         position: "0 0",
         model: {
-          class: "go.GraphLinksModel",
           nodeDataArray: [],
-          linkDataArray: [],
         },
       },
       geoArr: [],
@@ -19,118 +17,127 @@ class App extends Component {
     };
   }
 
-  getGeo = (nodeDataArray) => {
-    this.setState({
-      ...this.state.data,
-      model: {
-        ...this.state.data.model,
-        nodeDataArray,
-      },
-    });
-  };
+  // getGeo = (nodeDataArray) => {
+  //   this.setState({
+  //     ...this.state.data,
+  //     model: {
+  //       ...this.state.data.model,
+  //       nodeDataArray,
+  //     },
+  //   });
+  //   console.log('nodeDataArray', nodeDataArray);
+    
+  // };
 
-  formatGeo = (nodeDataArray) => {
-    const { data } = this.state;
-    let geoArr = [];
+  // formatGeo = (nodeDataArray) => {
+  //   const { data } = this.state;
 
-    if (data.model.nodeDataArray.length > 0) {
-      data.model.nodeDataArray.map((item, index) => {
-        if (item.category === "PolygonDrawing") {
-          let strGeo = item.geo;
-          let strLoc = item.loc;
-          let strReplace = strGeo.replace(/F|M|L|Z/gi, "");
-          let arr = strReplace.split(" ");
-          let arrLoc = strLoc.split(" ");
-          arr.shift();
+  //   console.log('data format geo', data);
+    
+  //   let geoArr = [];
 
-          function chunkArray(myArr, chunk_size) {
-            let results = [];
+  //   if (data.model.nodeDataArray.length > 0) {
+  //     data.model.nodeDataArray.map((item, index) => {
+  //       if (item.category === "PolygonDrawing") {
+  //         let strGeo = item.geo;
+  //         let strLoc = item.loc;
+  //         let strReplace = strGeo.replace(/F|M|L|Z/gi, "");
+  //         let arr = strReplace.split(" ");
+  //         let arrLoc = strLoc.split(" ");
+  //         arr.shift();
 
-            while (myArr.length) {
-              results.push(myArr.splice(0, chunk_size));
-            }
+  //         function chunkArray(myArr, chunk_size) {
+  //           let results = [];
 
-            return results;
-          }
-          let result = chunkArray(arr, 2);
+  //           while (myArr.length) {
+  //             results.push(myArr.splice(0, chunk_size));
+  //           }
 
-          let locX = Number(arrLoc[0]).toFixed(0);
-          let locY = Number(arrLoc[1]).toFixed(0);
+  //           return results;
+  //         }
+  //         let result = chunkArray(arr, 2);
 
-          let geoObjs = result.map((item) => {
-            let geoX = Number(item[0]).toFixed(0);
-            let geoY = Number(item[1]).toFixed(0);
-            return {
-              x: Number(geoX) + Number(locX),
-              y: Number(geoY) + Number(locY),
-            };
-          });
+  //         let locX = Number(arrLoc[0]).toFixed(0);
+  //         let locY = Number(arrLoc[1]).toFixed(0);
 
-          geoArr.push(geoObjs);
+  //         let geoObjs = result.map((item) => {
+  //           let geoX = Number(item[0]).toFixed(0);
+  //           let geoY = Number(item[1]).toFixed(0);
+  //           return {
+  //             x: Number(geoX) + Number(locX),
+  //             y: Number(geoY) + Number(locY),
+  //           };
+  //         });
 
-          return true;
-        } else if (item.category === "Rectangle") {
-          let { size, loc } = item;
-          let arrSize = size.split(" ");
-          let arrLoc = loc.split(" ");
+  //         geoArr.push(geoObjs);
 
-          let x1 = Number(arrLoc[0]).toFixed(0)
-          let y1 = Number(arrLoc[1]).toFixed(0)
-          let x2 = (Number(x1) + Number(arrSize[0])).toFixed(0);
-          let y2 = y1;
-          let x3 = x2;
-          let y3 = (Number(y1) + Number(arrSize[1])).toFixed(0);
-          let x4 = x1;
-          let y4 = y3;
+  //         return true;
+  //       } else if (item.category === "Rectangle") {
+  //         let { size, loc } = item;
+  //         let arrSize = size.split(" ");
+  //         let arrLoc = loc.split(" ");
 
-          let geoRectangle = [
-            {
-              x: x1,
-              y: y1,
-            },
-            {
-              x: x2,
-              y: y2,
-            },
-            {
-              x: x3,
-              y: y3,
-            },
-            {
-              x: x4,
-              y: y4,
-            },
-          ];
+  //         let x1 = Number(arrLoc[0]).toFixed(0);
+  //         let y1 = Number(arrLoc[1]).toFixed(0);
+  //         let x2 = (Number(x1) + Number(arrSize[0])).toFixed(0);
+  //         let y2 = y1;
+  //         let x3 = x2;
+  //         let y3 = (Number(y1) + Number(arrSize[1])).toFixed(0);
+  //         let x4 = x1;
+  //         let y4 = y3;
 
-          geoArr.push(geoRectangle);
-        }
-      });
-    }
+  //         let geoRectangle = [
+  //           {
+  //             x: x1,
+  //             y: y1,
+  //           },
+  //           {
+  //             x: x2,
+  //             y: y2,
+  //           },
+  //           {
+  //             x: x3,
+  //             y: y3,
+  //           },
+  //           {
+  //             x: x4,
+  //             y: y4,
+  //           },
+  //         ];
 
-    if (nodeDataArray.length < 1) {
-      this.setState({
-        geoArr: [],
-      });
-    }
+  //         geoArr.push(geoRectangle);
 
-    if (geoArr.length > 0) {
-      this.setState({
-        geoArr,
-      });
-    }
-  };
+  //         item.geo = `F M${x1} ${y1} L${x2} ${y2} L${x3} ${y3} L${x4} ${y4}z`;
+  //       }
+  //     });
+  //   }
+
+  //   if (nodeDataArray.length < 1) {
+  //     this.setState({
+  //       geoArr: [],
+  //     });
+  //   }
+
+  //   if (geoArr.length > 0) {
+  //     this.setState({
+  //       geoArr,
+  //     });
+  //   }
+  // };
 
   render() {
     const { data, geoArr } = this.state;
+    // console.log('data app', data);
+    
 
     return (
       <div className="App">
         {/* <Rectangle /> */}
         <DrawingZone
-          data={data}
-          geoArr={geoArr}
-          getGeo={this.getGeo}
-          formatGeo={this.formatGeo}
+          // data={data}
+          // geoArr={geoArr}
+          // getGeo={this.getGeo}
+          // formatGeo={this.formatGeo}
         />
       </div>
     );

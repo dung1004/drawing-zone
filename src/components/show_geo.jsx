@@ -47,6 +47,7 @@ class ShowGeo extends Component {
   };
   render() {
     const { classes, data } = this.props;
+
     return (
       <div className={classes.root}>
         <div className={classes.geoBox}>

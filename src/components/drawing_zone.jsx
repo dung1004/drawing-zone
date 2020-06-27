@@ -1,6 +1,7 @@
 import React, { Component } from "react";
 import { withStyles } from "@material-ui/styles";
 import * as go from "gojs";
+import { connect } from "react-redux";
 
 import GeometryReshapingTool from "./../lib/GeometryReshapingTool";
 import PolygonDrawingTool from "./../lib/PolygonDrawingTool";
@@ -8,6 +9,7 @@ import DragCreatingTool from "./../lib/DragCreatingTool";
 import FormSelected from "./form_selected";
 import ShowGeo from "./show_geo";
 import GeoFormat from "./geo_format";
+import { loadGeo, addZone, formatGeo } from "./../redux/actions/geo";
 
 const styles = {
   myDiagramDiv: {
@@ -33,6 +35,7 @@ class DrawingZone extends Component {
 
   componentDidMount() {
     this.init();
+    this.props.loadGeo();
   }
 
   componentDidUpdate() {
@@ -121,22 +124,22 @@ class DrawingZone extends Component {
     tool.isPolygon = true;
     myDiagram.toolManager.mouseDownTools.insertAt(0, tool);
 
-    try {
-      let { data } = this.props;
-      myDiagram.initialPosition = go.Point.parse(data.position || "0 0");
-      myDiagram.model = go.Model.fromJson(data.model);
+    // try {
+    //   let { data } = this.props;
+    //   myDiagram.initialPosition = go.Point.parse(data.position || "0 0");
+    //   myDiagram.model = go.Model.fromJson(data.model);
 
-      myDiagram.model.undoManager.isEnabled = true;
-    } catch (ex) {
-      alert(ex);
-    }
+    //   myDiagram.model.undoManager.isEnabled = true;
+    // } catch (ex) {
+    //   alert(ex);
+    // }
 
     // handle drawing rectangle
     myDiagram.nodeTemplate = $(
       go.Node,
       "Auto",
       { dragComputation: this.stayInFixedArea },
-      { minSize: new go.Size(60, 20), resizable: true },
+      { minSize: new go.Size(20, 20), resizable: true },
       new go.Binding("desiredSize", "size", go.Size.parse).makeTwoWay(
         go.Size.stringify
       ),
@@ -160,6 +163,8 @@ class DrawingZone extends Component {
       myDiagram,
       $,
     });
+
+    this.loadGeo(myDiagram);
   }
 
   onChangeTypeDraw = (type) => {
@@ -201,10 +206,106 @@ class DrawingZone extends Component {
     const { myDiagram } = this.state;
     if (myDiagram?.model) {
       let dataJson = myDiagram.model.toJson();
+
       let dataObj = JSON.parse(dataJson);
 
-      this.props.getGeo(dataObj.nodeDataArray);
-      this.props.formatGeo(dataObj.nodeDataArray);
+      console.log("dataJson", dataObj.nodeDataArray);
+      this.handleFormatGeo(dataObj.nodeDataArray);
+
+      this.props.addZone(dataObj.nodeDataArray);
+      // this.props.getGeo(dataObj.nodeDataArray);
+    }
+  };
+
+  handleFormatGeo = (nodeDataArray) => {
+    const data = this.props.geoArray;
+
+    console.log("data format geo", this.props.geoArray);
+
+    let geoArr = [];
+
+    if (data.model.nodeDataArray.length > 0) {
+      data.model.nodeDataArray.map((item, index) => {
+        if (item.category === "PolygonDrawing") {
+          let strGeo = item.geo;
+          let strLoc = item.loc;
+          let strReplace = strGeo.replace(/F|M|L|Z/gi, "");
+          let arr = strReplace.split(" ");
+          let arrLoc = strLoc.split(" ");
+          arr.shift();
+
+          function chunkArray(myArr, chunk_size) {
+            let results = [];
+
+            while (myArr.length) {
+              results.push(myArr.splice(0, chunk_size));
+            }
+
+            return results;
+          }
+          let result = chunkArray(arr, 2);
+
+          let locX = Number(arrLoc[0]).toFixed(0);
+          let locY = Number(arrLoc[1]).toFixed(0);
+
+          let geoObjs = result.map((item) => {
+            let geoX = Number(item[0]).toFixed(0);
+            let geoY = Number(item[1]).toFixed(0);
+            return {
+              x: Number(geoX) + Number(locX),
+              y: Number(geoY) + Number(locY),
+            };
+          });
+
+          geoArr.push(geoObjs);
+
+          return true;
+        } else if (item.category === "Rectangle") {
+          let { size, loc } = item;
+          let arrSize = size.split(" ");
+          let arrLoc = loc.split(" ");
+
+          let x1 = Number(arrLoc[0]).toFixed(0);
+          let y1 = Number(arrLoc[1]).toFixed(0);
+          let x2 = (Number(x1) + Number(arrSize[0])).toFixed(0);
+          let y2 = y1;
+          let x3 = x2;
+          let y3 = (Number(y1) + Number(arrSize[1])).toFixed(0);
+          let x4 = x1;
+          let y4 = y3;
+
+          let geoRectangle = [
+            {
+              x: x1,
+              y: y1,
+            },
+            {
+              x: x2,
+              y: y2,
+            },
+            {
+              x: x3,
+              y: y3,
+            },
+            {
+              x: x4,
+              y: y4,
+            },
+          ];
+
+          geoArr.push(geoRectangle);
+
+          item.geo = `F M${x1} ${y1} L${x2} ${y2} L${x3} ${y3} L${x4} ${y4}z`;
+        }
+      });
+    }
+
+    if (nodeDataArray.length < 1) {
+      this.props.formatGeo([]);
+    }
+
+    if (geoArr.length > 0) {
+      this.props.formatGeo(geoArr);
     }
   };
 
@@ -236,8 +337,22 @@ class DrawingZone extends Component {
     });
   };
 
+  loadGeo = (myDiagram) => {
+    const { geoArray, data } = this.props;
+    if (myDiagram?.toolManager) {
+      try {
+        // myDiagram.initialPosition = go.Point.parse(newData.position || "0 0");
+        myDiagram.model = go.Model.fromJson(geoArray.model);
+
+        // myDiagram.model.undoManager.isEnabled = true;
+      } catch (ex) {
+        alert(ex);
+      }
+    }
+  };
+
   render() {
-    const { classes, data, geoArr } = this.props;
+    const { classes, geoArray } = this.props;
 
     return (
       <div id="sample">
@@ -245,8 +360,8 @@ class DrawingZone extends Component {
           onChange={this.onChange}
           onChangeTypeDraw={this.onChangeType}
         />
-        <ShowGeo data={data} logGeo={this.logGeo} />
-        <GeoFormat geoArr={geoArr} />
+        <ShowGeo data={geoArray} logGeo={this.logGeo} />
+        <GeoFormat />
         <div id="myDiagramDiv" className={classes.myDiagramDiv}></div>
 
         <div
@@ -273,4 +388,27 @@ class DrawingZone extends Component {
   }
 }
 
-export default withStyles(styles)(DrawingZone);
+const mapStateToProps = (state) => {
+  return {
+    geoArray: state.loadGeo.geoArray,
+  };
+};
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    loadGeo: () => {
+      dispatch(loadGeo());
+    },
+    addZone: (payload) => {
+      dispatch(addZone(payload));
+    },
+    formatGeo: (payload) => {
+      dispatch(formatGeo(payload));
+    },
+  };
+};
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(withStyles(styles)(DrawingZone));
