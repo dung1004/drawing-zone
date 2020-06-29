@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import DrawingZone from "./components/drawing_zone";
-import Rectangle from "./components/rectangle";
+// import Rectangle from "./components/rectangle";
 
 class App extends Component {
   constructor(props) {

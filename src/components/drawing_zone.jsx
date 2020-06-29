@@ -12,8 +12,8 @@ import GeoFormat from "./geo_format";
 const styles = {
   myDiagramDiv: {
     border: "solid 1px black",
-    width: "calc(2560px / 2)",
-    height: "calc(1920px / 2)",
+    width: "calc(2560px / 3)",
+    height: "calc(1920px / 3)",
     margin: "0 auto",
     backgroundImage: "url(./images/test.png)",
     backgroundSize: "cover",
@@ -53,8 +53,8 @@ class DrawingZone extends Component {
 
   init() {
     let $ = go.GraphObject.make;
-    let width = 2560 / 2;
-    let height = 1920 / 2;
+    let width = 2560 / 3;
+    let height = 1920 / 3;
     const myDiagram = $(go.Diagram, "myDiagramDiv", {
       fixedBounds: new go.Rect(0, 0, width, height),
       allowHorizontalScroll: false,
@@ -136,7 +136,7 @@ class DrawingZone extends Component {
       go.Node,
       "Auto",
       { dragComputation: this.stayInFixedArea },
-      { minSize: new go.Size(60, 20), resizable: true },
+      { minSize: new go.Size(20, 20), resizable: true },
       new go.Binding("desiredSize", "size", go.Size.parse).makeTwoWay(
         go.Size.stringify
       ),

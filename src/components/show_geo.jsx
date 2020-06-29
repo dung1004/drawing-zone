@@ -5,7 +5,7 @@ const styles = {
   root: {
     position: "absolute",
     top: "30%",
-    padding: 10,
+    // padding: 10,
   },
 
   geoBox: {
