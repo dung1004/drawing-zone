@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import { connect } from 'react-redux'
 import { withStyles } from "@material-ui/styles";
 
 const styles = {
@@ -46,13 +47,15 @@ class ShowGeo extends Component {
     this.props.logGeo();
   };
   render() {
-    const { classes, data } = this.props;
+    const { classes, nodeData } = this.props;
+    console.log('render cap nhat');
+    
 
     return (
       <div className={classes.root}>
-        <div className={classes.geoBox}>
-          {data?.model?.nodeDataArray.length > 0
-            ? data.model.nodeDataArray.map((item, index) => {
+        {/* <div className={classes.geoBox}>
+          {nodeData.length > 0
+            ? nodeData.map((item, index) => {
                 return (
                   <ul className={classes.nodeDataArray} key={index}>
                     <li className={classes.title}>Hình {index + 1}</li>
@@ -92,10 +95,20 @@ class ShowGeo extends Component {
 
         <button className={classes.logeo} onClick={this.onClick}>
           chi tiết
+        </button> */}
+
+        <button className={classes.logeo} onClick={this.onClick}>
+          Cập nhật
         </button>
       </div>
     );
   }
 }
 
-export default withStyles(styles)(ShowGeo);
+const mapStateToProps = (state) => {
+  return {
+    nodeData: state.loadGeo.geoArray.model.nodeDataArray,
+  };
+};
+
+export default connect(mapStateToProps)(withStyles(styles)(ShowGeo));

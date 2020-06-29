@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import { withStyles } from "@material-ui/styles";
-import { TextField, FormControl } from "@material-ui/core";
+import { TextField, FormControl, Typography, Button } from "@material-ui/core";
 import Autocomplete from "@material-ui/lab/Autocomplete";
 
 const styles = {
@@ -9,6 +9,15 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     top: 30,
+    left: 25,
+  },
+  zone: {
+    display: "flex",
+    justifyContent: "space-between",
+    margin: "10px 0",
+  },
+  button: {
+    textTransform: "lowercase",
   },
 };
 
@@ -59,8 +68,80 @@ class FormSelected extends Component {
     this.props.onChangeTypeDraw(value);
   };
 
+  handleEnabled = () => {
+    this.props.changeIsEnabled(1);
+  };
+
+  showZoneEnabled = () => {
+    const { isEnabled, classes } = this.props;
+    let result = null;
+    const type = [
+      { title: "Lấn làn" },
+      { title: "Đèn xanh" },
+      { title: "Đèn đỏ" },
+      { title: "Đèn vàng" },
+    ];
+    if (isEnabled === 0) {
+      result = type.map((item) => {
+        return (
+          <div className={classes.zone} >
+            <Typography>{item.title}</Typography>
+            <Button
+              variant="contained"
+              size="small"
+              className={classes.button}
+              color="primary"
+              onClick={this.handleEnabled}
+            >
+              Vẽ
+            </Button>
+          </div>
+        );
+      });
+    }
+
+    if (isEnabled === 1) {
+      result = type.map((item) => {
+        return (
+          <div className={classes.zone}>
+            <Typography>{item.title}</Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              className={classes.button}
+              color="primary"
+            >
+              Đang vẽ
+            </Button>
+          </div>
+        );
+      });
+    }
+
+    if (isEnabled === 2) {
+      result = type.map((item) => {
+        return (
+          <div className={classes.zone}>
+            <Typography>{item.title}</Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              className={classes.button}
+              color="primary"
+            >
+              Đang vẽ
+            </Button>
+          </div>
+        );
+      });
+    }
+
+    return result;
+  };
+
   render() {
-    const { classes } = this.props;
+    const { classes, isEnabled } = this.props;
+
     return (
       <div className={classes.root}>
         <FormControl margin="dense">
@@ -94,6 +175,8 @@ class FormSelected extends Component {
             )}
           />
         </FormControl>
+        {this.showZoneEnabled()}
+
       </div>
     );
   }
