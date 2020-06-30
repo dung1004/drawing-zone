@@ -1,5 +1,6 @@
 import React, { Component } from "react";
 import { withStyles } from "@material-ui/styles";
+import { connect } from 'react-redux'
 
 const styles = {
   root: {
@@ -34,12 +35,13 @@ const styles = {
 };
 class GeoFormat extends Component {
   render() {
-    const { classes, geoArr } = this.props;
+    const { classes, geoFormat } = this.props;
+
     return (
       <div className={classes.root}>
         <div className={classes.geoBox}>
-          {geoArr?.length > 0
-            ? geoArr.map((item, index) => {
+          {geoFormat?.length > 0
+            ? geoFormat.map((item, index) => {
                 return (
                   <ul key={index} className={classes.nodeDataArray}>
                     <li className={classes.title}>Hình {index + 1}</li>
@@ -63,4 +65,10 @@ class GeoFormat extends Component {
   }
 }
 
-export default withStyles(styles)(GeoFormat);
+const mapStateToProps = (state) => {
+  return {
+    geoFormat: state.loadGeo.geoFormat,
+  };
+};
+
+export default connect(mapStateToProps)(withStyles(styles)(GeoFormat));
