@@ -10,7 +10,14 @@ import DragCreatingTool from "./../lib/DragCreatingTool";
 import FormSelected from "./form_selected";
 import ShowGeo from "./show_geo";
 import GeoFormat from "./geo_format";
-import { loadGeo, addZone, formatGeo } from "./../redux/actions/geo";
+import {
+  loadGeo,
+  addZone,
+  isDrawing,
+  selectedZone,
+  unselectedZone,
+} from "./../redux/actions/geo";
+import _ from "lodash";
 
 const styles = {
   myDiagramDiv: {
@@ -39,8 +46,6 @@ class DrawingZone extends Component {
       $: "",
       typeDrawing: "polygon",
       color: "red",
-      isEnabled: 0,
-      type: "",
     };
   }
 
@@ -51,29 +56,6 @@ class DrawingZone extends Component {
 
   componentDidUpdate() {
     this.changeColorType();
-  }
-
-  stayInFixedArea(part, pt, gridpt) {
-    let diagram = part.diagram;
-    if (diagram === null) return pt;
-    let v = diagram.documentBounds.copy();
-    v.subtractMargin(diagram.padding);
-    let b = part.actualBounds;
-    let loc = part.location;
-    let x = Math.max(v.x, Math.min(pt.x, v.right - b.width)) + (loc.x - b.x);
-    let y = Math.max(v.y, Math.min(pt.y, v.bottom - b.height)) + (loc.y - b.y);
-    return new go.Point(x, y);
-  }
-
-  handleMouseDownTools(e, obj) {
-    let itemNode = obj.jb;
-
-    console.log("itemNode", itemNode);
-  }
-
-  handleFinishShape() {
-    console.log("finish asdjalksdj");
-    return;
   }
 
   init() {
@@ -91,13 +73,18 @@ class DrawingZone extends Component {
       new GeometryReshapingTool()
     );
 
+    myDiagram.addDiagramListener(
+      "BackgroundDoubleClicked",
+      this.handleDoubleClicked
+    );
+
     myDiagram.nodeTemplateMap.add(
       "PolygonDrawing",
       $(
         go.Node,
         {
           dragComputation: this.stayInFixedArea,
-          click: this.handleMouseDownTools,
+          click: this.handleSelectedZone,
           reshapable: this.stayInFixedArea,
         },
         new go.Binding("location", "loc", go.Point.parse).makeTwoWay(
@@ -113,8 +100,8 @@ class DrawingZone extends Component {
             $(go.Placeholder, { margin: 0 })
           ),
         },
-        // { resizable: false, resizeObjectName: "SHAPE" },
-        // { rotatable: false, rotateObjectName: "SHAPE" },
+        { resizable: false, resizeObjectName: "SHAPE" },
+        { rotatable: false, rotateObjectName: "SHAPE" },
         $(
           go.Shape,
           {
@@ -138,29 +125,34 @@ class DrawingZone extends Component {
       )
     );
 
+    myDiagram.commandHandler.doKeyUp = this.handleFinishShape;
+
     //handle drawing polygon
     let tool = new PolygonDrawingTool();
     tool.archetypePartData = {
       fill: "transparent",
       stroke: "red",
       strokeWidth: 3,
-      type: null,
+      typeZone: null,
+      status: 0,
       category: "PolygonDrawing",
     };
-    tool.doKeyDown = this.handleFinishShape;
+    tool.doStop = this.handleFinishShape;
 
     tool.isPolygon = true;
 
     myDiagram.toolManager.mouseDownTools.insertAt(0, tool);
 
     // handle drawing rectangle
+    //  myDiagram.currentTool = new DragCreatingTool()
+    //  myDiagram.currentTool.doStop = this.test
     myDiagram.nodeTemplate = $(
       go.Node,
       "Auto",
       {
         dragComputation: this.stayInFixedArea,
         reshapable: this.stayInFixedArea,
-        click: this.handleMouseDownTools,
+        click: this.handleSelectedZone,
       },
       { minSize: new go.Size(20, 20), resizable: true },
       new go.Binding("desiredSize", "size", go.Size.parse).makeTwoWay(
@@ -198,9 +190,11 @@ class DrawingZone extends Component {
           category: "Rectangle",
           stroke: "red",
           fill: "transparent",
-          type: null,
+          typeZone: "",
+          status: 0,
           strokeWidth: 2,
         },
+        doStop: this.handleFinishShape,
       })
     );
 
@@ -213,11 +207,57 @@ class DrawingZone extends Component {
     this.configIsEnabled(myDiagram);
   }
 
+  loadGeo = (myDiagram) => {
+    const { geoArray } = this.props;
+    if (myDiagram?.toolManager) {
+      try {
+        myDiagram.model = go.Model.fromJson(geoArray.model);
+        myDiagram.model.undoManager.isEnabled = true;
+      } catch (ex) {
+        alert(ex);
+      }
+    }
+  };
+
+  stayInFixedArea(part, pt, gridpt) {
+    let diagram = part.diagram;
+    if (diagram === "") return pt;
+    let v = diagram.documentBounds.copy();
+    v.subtractMargin(diagram.padding);
+    let b = part.actualBounds;
+    let loc = part.location;
+    let x = Math.max(v.x, Math.min(pt.x, v.right - b.width)) + (loc.x - b.x);
+    let y = Math.max(v.y, Math.min(pt.y, v.bottom - b.height)) + (loc.y - b.y);
+    return new go.Point(x, y);
+  }
+
+  handleSelectedZone = (e, obj) => {
+    let itemNode = obj.jb;
+    this.props.selectedZone(itemNode);
+  };
+
+  handleDoubleClicked = () => {
+    this.props.unselectedZone();
+  };
+
+  handleFinishShape = () => {
+    const { myDiagram } = this.state;
+    if (myDiagram?.model) {
+      let dataJson = myDiagram.model.toJson();
+      let dataObj = JSON.parse(dataJson);
+
+      this.props.addZone(dataObj.nodeDataArray);
+      this.props.unselectedZone();
+      this.configIsEnabled(myDiagram);
+    }
+  };
+
   onChangeTypeDraw = (type) => {
-    const { myDiagram, $, isEnabled } = this.state;
+    const { myDiagram } = this.state;
+    const { status } = this.props.control;
     if (myDiagram?.toolManager) {
       if (type === "polygon") {
-        if (isEnabled === 1) {
+        if (status && status === 1) {
           let tool = myDiagram.toolManager.mouseDownTools.elt(0);
           tool.isEnabled = true;
         }
@@ -225,20 +265,6 @@ class DrawingZone extends Component {
         let tool = myDiagram.toolManager.mouseDownTools.elt(0);
         tool.isEnabled = false;
       }
-    }
-  };
-
-  updateGeo = () => {
-    const { myDiagram } = this.state;
-    if (myDiagram?.model) {
-      let dataJson = myDiagram.model.toJson();
-      let dataObj = JSON.parse(dataJson);
-
-      this.props.addZone(dataObj.nodeDataArray);
-
-      this.setState({
-        type: 2
-      });
     }
   };
 
@@ -362,31 +388,24 @@ class DrawingZone extends Component {
     });
   };
 
-  loadGeo = (myDiagram) => {
-    const { geoArray } = this.props;
-    if (myDiagram?.toolManager) {
-      try {
-        myDiagram.model = go.Model.fromJson(geoArray.model);
-        myDiagram.model.undoManager.isEnabled = true;
-      } catch (ex) {
-        alert(ex);
-      }
+  changeIsEnabled = (typeZone, id) => {
+    const { myDiagram, typeDrawing } = this.state;
+    console.log("typeDrawing", typeDrawing);
+
+    if (typeDrawing === "rectangle") {
+      let toolRectange = myDiagram.toolManager.mouseMoveTools.elt(2);
+      toolRectange.isEnabled = true;
+      toolRectange.archetypeNodeData.typeZone = typeZone;
+
+      let toolPolygon = myDiagram.toolManager.mouseDownTools.elt(0);
+      toolPolygon.isEnabled = false;
+    } else if (typeDrawing === "polygon") {
+      let toolPolygon = myDiagram.toolManager.mouseDownTools.elt(0);
+      toolPolygon.isEnabled = true;
+      toolPolygon.archetypePartData.typeZone = typeZone;
     }
-  };
 
-  changeIsEnabled = (isEnabled, typeTitle) => {
-    const { myDiagram } = this.state;
-
-    let toolPolygon = myDiagram.toolManager.mouseDownTools.elt(0);
-    toolPolygon.archetypePartData.type = typeTitle
-    toolPolygon.isEnabled = true;
-    let toolRectangle = myDiagram.toolManager.mouseMoveTools.elt(2);
-    toolRectangle.isEnabled = true;
-    toolRectangle.archetypeNodeData.type = typeTitle;
-
-    this.setState({
-      isEnabled: isEnabled,
-    });
+    this.props.isDrawing(id, typeZone);
   };
 
   configIsEnabled = (myDiagram) => {
@@ -396,19 +415,28 @@ class DrawingZone extends Component {
     toolRectange.isEnabled = false;
   };
 
+  updateGeo = () => {
+    const { myDiagram } = this.state;
+    if (myDiagram?.model) {
+      let dataJson = myDiagram.model.toJson();
+      let dataObj = JSON.parse(dataJson);
+
+      this.props.addZone(dataObj.nodeDataArray);
+
+      this.props.unselectedZone();
+      this.configIsEnabled(myDiagram);
+    }
+  };
+
   render() {
     const { classes } = this.props;
-    const { isEnabled } = this.state;
-
     return (
       <div id="sample">
         <FormSelected
           onChange={this.onChange}
           onChangeTypeDraw={this.onChangeType}
-          isEnabled={isEnabled}
           changeIsEnabled={this.changeIsEnabled}
         />
-
         <div className={classes.boxButton}>
           <Button
             variant="contained"
@@ -419,10 +447,7 @@ class DrawingZone extends Component {
             Cập nhật
           </Button>
         </div>
-        {/* <ShowGeo updateGeo={this.updateGeo} /> */}
-        {/* <GeoFormat /> */}
         <div id="myDiagramDiv" className={classes.myDiagramDiv}></div>
-
         <div
           id="goog-gt-tt"
           className="skiptranslate"
@@ -437,6 +462,7 @@ class DrawingZone extends Component {
 const mapStateToProps = (state) => {
   return {
     geoArray: state.loadGeo.geoArray,
+    control: state.loadGeo.control,
   };
 };
 
@@ -445,11 +471,17 @@ const mapDispatchToProps = (dispatch) => {
     loadGeo: () => {
       dispatch(loadGeo());
     },
+    isDrawing: (id, type) => {
+      dispatch(isDrawing(id, type));
+    },
     addZone: (payload) => {
       dispatch(addZone(payload));
     },
-    formatGeo: (payload) => {
-      dispatch(formatGeo(payload));
+    selectedZone: (payload) => {
+      dispatch(selectedZone(payload));
+    },
+    unselectedZone: () => {
+      dispatch(unselectedZone());
     },
   };
 };

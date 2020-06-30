@@ -20,9 +20,24 @@ export const formatGeo = (payload) => {
     }
 } 
 
-// export const showGeo = (payload) => {
-//     return {
-//         type: types.SHOW_GEO,
-//         payload
-//     }
-// }
+export const isDrawing = (id, typeZone) => {
+    return {
+        type: types.IS_DRAWING_STATUS,
+        id,
+        typeZone,
+    }
+}
+
+export const selectedZone = (payload) => {
+    return {
+        type: types.SELECTED_ZONE,
+        payload
+    }
+}
+
+export const unselectedZone = (payload) => {
+    return {
+        type: types.UNSELECTED_ZONE,
+        payload
+    }
+}
