@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import { connect } from "react-redux";
 import { withStyles } from "@material-ui/styles";
 import { TextField, FormControl, Typography, Button } from "@material-ui/core";
 import Autocomplete from "@material-ui/lab/Autocomplete";
@@ -16,9 +17,24 @@ const styles = {
     justifyContent: "space-between",
     margin: "10px 0",
   },
+  zoneActive: {
+    display: "flex",
+    justifyContent: "space-between",
+    margin: "10px 0",
+    alignItems: 'center',
+    border: '2px solid orange',
+    padding: 10,
+    borderRadius: 5,
+    transition: '.3s ease-in-out'
+
+  },
   button: {
     textTransform: "lowercase",
   },
+  title: {
+    fontWeight: 'bold',
+    transition: '.3s ease-in-out'
+  }
 };
 
 const colors = [
@@ -68,79 +84,62 @@ class FormSelected extends Component {
     this.props.onChangeTypeDraw(value);
   };
 
-  handleEnabled = () => {
-    this.props.changeIsEnabled(1);
+  handleEnabled = (e, type, id) => {
+    this.props.changeIsEnabled(type, id);
   };
 
   showZoneEnabled = () => {
-    const { isEnabled, classes } = this.props;
+    const { data, classes, control, selected } = this.props;
+
     let result = null;
     const type = [
-      { title: "Lấn làn" },
-      { title: "Đèn xanh" },
-      { title: "Đèn đỏ" },
-      { title: "Đèn vàng" },
+      { id: 1, title: "Lấn làn" },
+      { id: 2, title: "Đèn xanh" },
+      { id: 3, title: "Đèn đỏ" },
+      { id: 4, title: "Đèn vàng" },
     ];
-    if (isEnabled === 0) {
-      result = type.map((item) => {
-        return (
-          <div className={classes.zone} >
-            <Typography>{item.title}</Typography>
-            <Button
-              variant="contained"
-              size="small"
-              className={classes.button}
-              color="primary"
-              onClick={this.handleEnabled}
-            >
-              Vẽ
-            </Button>
-          </div>
-        );
-      });
-    }
 
-    if (isEnabled === 1) {
-      result = type.map((item) => {
-        return (
-          <div className={classes.zone}>
-            <Typography>{item.title}</Typography>
-            <Button
-              variant="outlined"
-              size="small"
-              className={classes.button}
-              color="primary"
-            >
-              Đang vẽ
-            </Button>
-          </div>
-        );
-      });
-    }
+    result = type.map((item) => {
+      let selectedDisable =
+        data.length > 0
+          ? data.filter((node) => node.typeZone === item.title)
+          : [];
+      let isDisable;
+      if (selectedDisable.length > 0) {
+        isDisable = true;
+      }
 
-    if (isEnabled === 2) {
-      result = type.map((item) => {
-        return (
-          <div className={classes.zone}>
-            <Typography>{item.title}</Typography>
-            <Button
-              variant="outlined"
-              size="small"
-              className={classes.button}
-              color="primary"
-            >
-              Đang vẽ
-            </Button>
-          </div>
-        );
-      });
-    }
+      return (
+        <div className={selected && selected === item.title ? classes.zoneActive : classes.zone} key={item.id}>
+          <Typography className={selected && selected === item.title ? classes.title : null}>{item.title}</Typography>
+          <Button
+            variant={
+              control.id === item.id && control.status === 1
+                ? "outlined"
+                : "contained"
+            }
+            size="small"
+            className={classes.button}
+            color="primary"
+            disabled={isDisable}
+            onClick={(e) => this.handleEnabled(e, item.title, item.id)}
+          >
+            {(control.id === item.id && control.status === 2) ||
+            selectedDisable.length > 0
+              ? "Vẽ xong"
+              : control.id === item.id && control.status === 1
+              ? "Đang vẽ"
+              : "Vẽ"}
+          </Button>
+        </div>
+      );
+    });
 
     return result;
   };
 
   render() {
-    const { classes, isEnabled } = this.props;
+    const { classes } = this.props;
 
     return (
       <div className={classes.root}>
@@ -176,10 +175,16 @@ class FormSelected extends Component {
           />
         </FormControl>
         {this.showZoneEnabled()}
-
       </div>
     );
   }
 }
+const mapStateToProps = (state) => {
+  return {
+    control: state.loadGeo.control,
+    data: state.loadGeo.geoArray.model.nodeDataArray,
+    selected: state.loadGeo.selected.typeZone
+  };
+};
 
-export default withStyles(styles)(FormSelected);
+export default connect(mapStateToProps)(withStyles(styles)(FormSelected));

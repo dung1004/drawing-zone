@@ -10,7 +10,15 @@ import DragCreatingTool from "./../lib/DragCreatingTool";
 import FormSelected from "./form_selected";
 import ShowGeo from "./show_geo";
 import GeoFormat from "./geo_format";
-import { loadGeo, addZone, formatGeo } from "./../redux/actions/geo";
+import {
+  loadGeo,
+  addZone,
+  formatGeo,
+  isDrawing,
+  selectedZone,
+  unselectedZone
+} from "./../redux/actions/geo";
+import _ from "lodash";
 
 const styles = {
   myDiagramDiv: {
@@ -40,7 +48,7 @@ class DrawingZone extends Component {
       typeDrawing: "polygon",
       color: "red",
       isEnabled: 0,
-      type: ''
+      type: "",
     };
   }
 
@@ -55,7 +63,7 @@ class DrawingZone extends Component {
 
   stayInFixedArea(part, pt, gridpt) {
     let diagram = part.diagram;
-    if (diagram === null) return pt;
+    if (diagram === "") return pt;
     let v = diagram.documentBounds.copy();
     v.subtractMargin(diagram.padding);
     let b = part.actualBounds;
@@ -65,15 +73,33 @@ class DrawingZone extends Component {
     return new go.Point(x, y);
   }
 
-  handleMouseDownTools(e, obj) {
-    let itemNode = obj.jb;
+  handleMouseDownTools = (e, obj) => {
 
-    console.log("itemNode", itemNode);
+    let itemNode = obj.jb;
+    this.props.selectedZone(itemNode);
+  };
+
+  handleDoubleClicked = () => {
+    this.props.unselectedZone()
+  };
+
+  handleFinishShape = () => {
+
+    const { myDiagram } = this.state;
+    if (myDiagram?.model) {
+      let dataJson = myDiagram.model.toJson();
+      let dataObj = JSON.parse(dataJson);
+
+      this.props.addZone(dataObj.nodeDataArray);
+
+      // this.props.unselectedZone()
+      this.configIsEnabled(myDiagram);
+    }
   }
 
-  handleFinishShape() {
-    console.log("finish asdjalksdj");
-    return
+  deleteSelection = () => {
+    console.log('alskdasdjalskdjalskdj');
+    
   }
 
   init() {
@@ -89,6 +115,11 @@ class DrawingZone extends Component {
     myDiagram.toolManager.mouseDownTools.insertAt(
       3,
       new GeometryReshapingTool()
+    );
+
+    myDiagram.addDiagramListener(
+      "BackgroundDoubleClicked",
+      this.handleDoubleClicked
     );
 
     myDiagram.nodeTemplateMap.add(
@@ -144,10 +175,13 @@ class DrawingZone extends Component {
       fill: "transparent",
       stroke: "red",
       strokeWidth: 3,
+      typeZone: null,
+      status: 0,
       category: "PolygonDrawing",
     };
-    tool.doKeyDown = this.handleFinishShape
-      
+    tool.doStop = this.handleFinishShape;
+    tool.deleteSelection = this.deleteSelection
+
     tool.isPolygon = true;
 
     myDiagram.toolManager.mouseDownTools.insertAt(0, tool);
@@ -197,6 +231,8 @@ class DrawingZone extends Component {
           category: "Rectangle",
           stroke: "red",
           fill: "transparent",
+          typeZone: "",
+          status: 0,
           strokeWidth: 2,
         },
       })
@@ -233,6 +269,9 @@ class DrawingZone extends Component {
       let dataObj = JSON.parse(dataJson);
 
       this.props.addZone(dataObj.nodeDataArray);
+
+      this.props.unselectedZone()
+      this.configIsEnabled(myDiagram);
     }
   };
 
@@ -368,17 +407,17 @@ class DrawingZone extends Component {
     }
   };
 
-  changeIsEnabled = (isEnabled) => {
+  changeIsEnabled = (typeZone, id) => {
     const { myDiagram } = this.state;
 
     let toolPolygon = myDiagram.toolManager.mouseDownTools.elt(0);
     toolPolygon.isEnabled = true;
+    toolPolygon.archetypePartData.typeZone = typeZone;
     let toolRectange = myDiagram.toolManager.mouseMoveTools.elt(2);
     toolRectange.isEnabled = true;
+    toolRectange.archetypeNodeData.typeZone = typeZone;
 
-    this.setState({
-      isEnabled: isEnabled,
-    });
+    this.props.isDrawing(id, typeZone);
   };
 
   configIsEnabled = (myDiagram) => {
@@ -390,14 +429,12 @@ class DrawingZone extends Component {
 
   render() {
     const { classes } = this.props;
-    const { isEnabled } = this.state;
 
     return (
       <div id="sample">
         <FormSelected
           onChange={this.onChange}
           onChangeTypeDraw={this.onChangeType}
-          isEnabled={isEnabled}
           changeIsEnabled={this.changeIsEnabled}
         />
 
@@ -437,12 +474,21 @@ const mapDispatchToProps = (dispatch) => {
     loadGeo: () => {
       dispatch(loadGeo());
     },
+    isDrawing: (id, type) => {
+      dispatch(isDrawing(id, type));
+    },
     addZone: (payload) => {
       dispatch(addZone(payload));
     },
     formatGeo: (payload) => {
       dispatch(formatGeo(payload));
     },
+    selectedZone: (payload) => {
+      dispatch(selectedZone(payload));
+    },
+    unselectedZone: () => {
+      dispatch(unselectedZone())
+    }
   };
 };
 
