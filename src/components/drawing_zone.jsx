@@ -2,14 +2,12 @@ import React, { Component } from "react";
 import { withStyles } from "@material-ui/styles";
 import * as go from "gojs";
 import { connect } from "react-redux";
-import { Button } from "@material-ui/core";
 
 import GeometryReshapingTool from "./../lib/GeometryReshapingTool";
 import PolygonDrawingTool from "./../lib/PolygonDrawingTool";
 import DragCreatingTool from "./../lib/DragCreatingTool";
 import FormSelected from "./form_selected";
-import ShowGeo from "./show_geo";
-import GeoFormat from "./geo_format";
+
 import {
   loadGeo,
   addZone,
@@ -17,7 +15,6 @@ import {
   selectedZone,
   unselectedZone,
 } from "./../redux/actions/geo";
-import _ from "lodash";
 
 const styles = {
   myDiagramDiv: {
@@ -133,7 +130,6 @@ class DrawingZone extends Component {
       stroke: "red",
       strokeWidth: 3,
       typeZone: null,
-      status: 0,
       category: "PolygonDrawing",
     };
     tool.doStop = this.handleFinishShape;
@@ -177,7 +173,7 @@ class DrawingZone extends Component {
         box: $(
           go.Part,
           $(go.Shape, {
-            // name: "SHAPE",
+            name: "SHAPE",
             fill: "transparent",
             stroke: "",
             strokeWidth: 2,
@@ -187,15 +183,14 @@ class DrawingZone extends Component {
           category: "Rectangle",
           stroke: "red",
           fill: "transparent",
-          typeZone: "",
-          status: 0,
+          typeZone: null,
           strokeWidth: 2,
         },
         doStop: this.handleFinishShape,
       })
     );
 
-    myDiagram.commandHandler.doKeyUp = this.handleUpdateShap;
+    myDiagram.commandHandler.doKeyUp = this.cancelSelectedZone;
     toolGeomytry.doStop = this.handleFinishShape;
     toolResizing.doStop = this.handleFinishShape;
 
@@ -257,7 +252,7 @@ class DrawingZone extends Component {
     }
   };
 
-  handleUpdateShap = () => {
+  cancelSelectedZone = () => {
     this.handleFinishShape()
     this.handleDoubleClicked()
   }
@@ -277,98 +272,6 @@ class DrawingZone extends Component {
       }
     }
   };
-
-  // handleFormatGeo = (nodeDataArray) => {
-  //   const data = this.props.geoArray;
-
-  //   // console.log("data format geo", this.props.geoArray);
-
-  //   let geoArr = [];
-
-  //   if (data.model.nodeDataArray.length > 0) {
-  //     data.model.nodeDataArray.map((item, index) => {
-  //       if (item.category === "PolygonDrawing") {
-  //         let strGeo = item.geo;
-  //         let strLoc = item.loc;
-  //         let strReplace = strGeo.replace(/F|M|L|Z/gi, "");
-  //         let arr = strReplace.split(" ");
-  //         let arrLoc = strLoc.split(" ");
-  //         arr.shift();
-
-  //         function chunkArray(myArr, chunk_size) {
-  //           let results = [];
-
-  //           while (myArr.length) {
-  //             results.push(myArr.splice(0, chunk_size));
-  //           }
-
-  //           return results;
-  //         }
-  //         let result = chunkArray(arr, 2);
-
-  //         let locX = Number(arrLoc[0]).toFixed(0);
-  //         let locY = Number(arrLoc[1]).toFixed(0);
-
-  //         let geoObjs = result.map((item) => {
-  //           let geoX = Number(item[0]).toFixed(0);
-  //           let geoY = Number(item[1]).toFixed(0);
-  //           return {
-  //             x: Number(geoX) + Number(locX),
-  //             y: Number(geoY) + Number(locY),
-  //           };
-  //         });
-
-  //         geoArr.push(geoObjs);
-
-  //         return true;
-  //       } else if (item.category === "Rectangle") {
-  //         let { size, loc } = item;
-  //         let arrSize = size.split(" ");
-  //         let arrLoc = loc.split(" ");
-
-  //         let x1 = Number(arrLoc[0]).toFixed(0);
-  //         let y1 = Number(arrLoc[1]).toFixed(0);
-  //         let x2 = (Number(x1) + Number(arrSize[0])).toFixed(0);
-  //         let y2 = y1;
-  //         let x3 = x2;
-  //         let y3 = (Number(y1) + Number(arrSize[1])).toFixed(0);
-  //         let x4 = x1;
-  //         let y4 = y3;
-
-  //         let geoRectangle = [
-  //           {
-  //             x: x1,
-  //             y: y1,
-  //           },
-  //           {
-  //             x: x2,
-  //             y: y2,
-  //           },
-  //           {
-  //             x: x3,
-  //             y: y3,
-  //           },
-  //           {
-  //             x: x4,
-  //             y: y4,
-  //           },
-  //         ];
-
-  //         geoArr.push(geoRectangle);
-
-  //         item.geo = `F M${x1} ${y1} L${x2} ${y2} L${x3} ${y3} L${x4} ${y4}z`;
-  //       }
-  //     });
-  //   }
-
-  //   // if (nodeDataArray.length < 1) {
-  //   //   this.props.formatGeo([]);
-  //   // }
-
-  //   // if (geoArr.length > 0) {
-  //   //   this.props.formatGeo(geoArr);
-  //   // }
-  // };
 
   changeColorType = () => {
     const { myDiagram, typeDrawing, color } = this.state;
@@ -398,9 +301,8 @@ class DrawingZone extends Component {
     });
   };
 
-  changeIsEnabled = (typeZone, id) => {
+  changeIsDrawingZone = (typeZone, id) => {
     const { myDiagram, typeDrawing } = this.state;
-    console.log("typeDrawing", typeDrawing);
 
     if (typeDrawing === "rectangle") {
       let toolRectange = myDiagram.toolManager.mouseMoveTools.elt(2);
@@ -415,7 +317,6 @@ class DrawingZone extends Component {
       toolPolygon.archetypePartData.typeZone = typeZone;
     }
 
-    // this.handleDoubleClicked();
     this.props.isDrawing(id, typeZone);
   };
 
@@ -426,19 +327,6 @@ class DrawingZone extends Component {
     toolRectange.isEnabled = false;
   };
 
-  // updateGeo = () => {
-  //   const { myDiagram } = this.state;
-  //   if (myDiagram?.model) {
-  //     let dataJson = myDiagram.model.toJson();
-  //     let dataObj = JSON.parse(dataJson);
-
-  //     this.props.addZone(dataObj.nodeDataArray);
-
-  //     this.props.unselectedZone();
-  //     this.configIsEnabled(myDiagram);
-  //   }
-  // };
-
   render() {
     const { classes } = this.props;
     return (
@@ -446,25 +334,11 @@ class DrawingZone extends Component {
         <FormSelected
           onChange={this.onChange}
           onChangeTypeDraw={this.onChangeType}
-          changeIsEnabled={this.changeIsEnabled}
+          changeIsDrawingZone={this.changeIsDrawingZone}
         />
-        {/* <div className={classes.boxButton}>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={this.updateGeo}
-            className={classes.button}
-          >
-            Cập nhật
-          </Button>
-        </div> */}
+  
         <div id="myDiagramDiv" className={classes.myDiagramDiv}></div>
-        {/* <div
-          id="goog-gt-tt"
-          className="skiptranslate"
-          dir="ltr"
-          style={{ display: "none" }}
-        ></div> */}
+     
       </div>
     );
   }

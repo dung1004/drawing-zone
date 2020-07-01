@@ -85,7 +85,7 @@ class FormSelected extends Component {
   };
 
   handleEnabled = (e, type, id) => {
-    this.props.changeIsEnabled(type, id);
+    this.props.changeIsDrawingZone(type, id);
   };
 
   showZoneEnabled = () => {
