@@ -22,11 +22,12 @@ import _ from "lodash";
 const styles = {
   myDiagramDiv: {
     border: "solid 1px black",
-    width: "calc(2560px / 3)",
-    height: "calc(1920px / 3)",
+    width: "calc(2560px / 2)",
+    height: "calc(1920px / 2)",
     margin: "0 auto",
     backgroundImage: "url(./images/test.png)",
     backgroundSize: "cover",
+    overflow: "hidden",
   },
   boxButton: {
     position: "absolute",
@@ -60,18 +61,18 @@ class DrawingZone extends Component {
 
   init() {
     let $ = go.GraphObject.make;
-    let width = 2560 / 3;
-    let height = 1920 / 3;
+    let width = 2560 / 2;
+    let height = 1920 / 2;
     const myDiagram = $(go.Diagram, "myDiagramDiv", {
       fixedBounds: new go.Rect(0, 0, width, height),
       allowHorizontalScroll: false,
       allowVerticalScroll: false,
-      allowZoom: true,
+      allowZoom: false,
     });
-    myDiagram.toolManager.mouseDownTools.insertAt(
-      3,
-      new GeometryReshapingTool()
-    );
+
+    let toolResizing = myDiagram.toolManager.resizingTool;
+    let toolGeomytry = new GeometryReshapingTool();
+    myDiagram.toolManager.mouseDownTools.insertAt(3, toolGeomytry);
 
     myDiagram.addDiagramListener(
       "BackgroundDoubleClicked",
@@ -85,7 +86,6 @@ class DrawingZone extends Component {
         {
           dragComputation: this.stayInFixedArea,
           click: this.handleSelectedZone,
-          reshapable: this.stayInFixedArea,
         },
         new go.Binding("location", "loc", go.Point.parse).makeTwoWay(
           go.Point.stringify
@@ -97,11 +97,13 @@ class DrawingZone extends Component {
             go.Adornment,
             "Auto",
             $(go.Shape, { stroke: "dodgerblue", fill: "transparents" }),
-            $(go.Placeholder, { margin: 0 })
+            $(go.Placeholder, { margin: -1 })
           ),
         },
         { resizable: false, resizeObjectName: "SHAPE" },
         { rotatable: false, rotateObjectName: "SHAPE" },
+        { reshapable: true },
+
         $(
           go.Shape,
           {
@@ -112,7 +114,6 @@ class DrawingZone extends Component {
             maxSize: new go.Size(width, height),
             minSize: new go.Size(20, 20),
           },
-
           new go.Binding("desiredSize", "size", go.Size.parse).makeTwoWay(
             go.Size.stringify
           ),
@@ -124,8 +125,6 @@ class DrawingZone extends Component {
         )
       )
     );
-
-    myDiagram.commandHandler.doKeyUp = this.handleFinishShape;
 
     //handle drawing polygon
     let tool = new PolygonDrawingTool();
@@ -144,8 +143,6 @@ class DrawingZone extends Component {
     myDiagram.toolManager.mouseDownTools.insertAt(0, tool);
 
     // handle drawing rectangle
-    //  myDiagram.currentTool = new DragCreatingTool()
-    //  myDiagram.currentTool.doStop = this.test
     myDiagram.nodeTemplate = $(
       go.Node,
       "Auto",
@@ -198,6 +195,10 @@ class DrawingZone extends Component {
       })
     );
 
+    myDiagram.commandHandler.doKeyUp = this.handleUpdateShap;
+    toolGeomytry.doStop = this.handleFinishShape;
+    toolResizing.doStop = this.handleFinishShape;
+
     this.setState({
       myDiagram,
       $,
@@ -211,6 +212,7 @@ class DrawingZone extends Component {
     const { geoArray } = this.props;
     if (myDiagram?.toolManager) {
       try {
+        myDiagram.initialPosition = go.Point.parse(geoArray.position || "0 0");
         myDiagram.model = go.Model.fromJson(geoArray.model);
         myDiagram.model.undoManager.isEnabled = true;
       } catch (ex) {
@@ -219,7 +221,7 @@ class DrawingZone extends Component {
     }
   };
 
-  stayInFixedArea(part, pt, gridpt) {
+  stayInFixedArea = (part, pt, gridpt) => {
     let diagram = part.diagram;
     if (diagram === "") return pt;
     let v = diagram.documentBounds.copy();
@@ -228,12 +230,16 @@ class DrawingZone extends Component {
     let loc = part.location;
     let x = Math.max(v.x, Math.min(pt.x, v.right - b.width)) + (loc.x - b.x);
     let y = Math.max(v.y, Math.min(pt.y, v.bottom - b.height)) + (loc.y - b.y);
+
+    this.handleFinishShape();
+
     return new go.Point(x, y);
-  }
+  };
 
   handleSelectedZone = (e, obj) => {
     let itemNode = obj.jb;
     this.props.selectedZone(itemNode);
+    // console.log('itemNode', itemNode);
   };
 
   handleDoubleClicked = () => {
@@ -247,10 +253,14 @@ class DrawingZone extends Component {
       let dataObj = JSON.parse(dataJson);
 
       this.props.addZone(dataObj.nodeDataArray);
-      this.props.unselectedZone();
       this.configIsEnabled(myDiagram);
     }
   };
+
+  handleUpdateShap = () => {
+    this.handleFinishShape()
+    this.handleDoubleClicked()
+  }
 
   onChangeTypeDraw = (type) => {
     const { myDiagram } = this.state;
@@ -405,6 +415,7 @@ class DrawingZone extends Component {
       toolPolygon.archetypePartData.typeZone = typeZone;
     }
 
+    // this.handleDoubleClicked();
     this.props.isDrawing(id, typeZone);
   };
 
@@ -415,18 +426,18 @@ class DrawingZone extends Component {
     toolRectange.isEnabled = false;
   };
 
-  updateGeo = () => {
-    const { myDiagram } = this.state;
-    if (myDiagram?.model) {
-      let dataJson = myDiagram.model.toJson();
-      let dataObj = JSON.parse(dataJson);
+  // updateGeo = () => {
+  //   const { myDiagram } = this.state;
+  //   if (myDiagram?.model) {
+  //     let dataJson = myDiagram.model.toJson();
+  //     let dataObj = JSON.parse(dataJson);
 
-      this.props.addZone(dataObj.nodeDataArray);
+  //     this.props.addZone(dataObj.nodeDataArray);
 
-      this.props.unselectedZone();
-      this.configIsEnabled(myDiagram);
-    }
-  };
+  //     this.props.unselectedZone();
+  //     this.configIsEnabled(myDiagram);
+  //   }
+  // };
 
   render() {
     const { classes } = this.props;
@@ -437,7 +448,7 @@ class DrawingZone extends Component {
           onChangeTypeDraw={this.onChangeType}
           changeIsEnabled={this.changeIsEnabled}
         />
-        <div className={classes.boxButton}>
+        {/* <div className={classes.boxButton}>
           <Button
             variant="contained"
             color="primary"
@@ -446,14 +457,14 @@ class DrawingZone extends Component {
           >
             Cập nhật
           </Button>
-        </div>
+        </div> */}
         <div id="myDiagramDiv" className={classes.myDiagramDiv}></div>
-        <div
+        {/* <div
           id="goog-gt-tt"
           className="skiptranslate"
           dir="ltr"
           style={{ display: "none" }}
-        ></div>
+        ></div> */}
       </div>
     );
   }

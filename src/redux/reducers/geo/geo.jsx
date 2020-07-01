@@ -69,7 +69,7 @@ export const loadGeo = (state = initialState, action) => {
         ...state,
         selected: {
           typeZone: action.payload.typeZone,
-        },
+        }
       };
     case types.UNSELECTED_ZONE:
       return {
