@@ -17,13 +17,24 @@ import {
 } from "./../redux/actions/geo";
 
 const styles = {
+  root: {
+    display: "flex",
+    width: "100%",
+    height: "100vh",
+    overflow: "hidden"
+  },
+  rootDiagram: {
+    width: "100%",
+    height: "100%",
+    background: "black"
+  },
   myDiagramDiv: {
     border: "solid 1px black",
-    width: "calc(2560px / 2)",
-    height: "calc(1920px / 2)",
-    margin: "0 auto",
-    backgroundImage: "url(./images/test.png)",
-    backgroundSize: "cover",
+    width: "100%",
+    height: "100%",
+    // backgroundImage: "url(./images/snapshot_1.png)",
+    backgroundSize: "contain",
+    backgroundRepeat: "no-repeat",
     overflow: "hidden",
   },
   boxButton: {
@@ -199,8 +210,11 @@ class DrawingZone extends Component {
       $,
     });
 
-    this.loadGeo(myDiagram);
     this.configIsEnabled(myDiagram);
+    this.loadGeo(myDiagram);
+
+    this.fixedBoundsImage(myDiagram);
+
   }
 
   loadGeo = (myDiagram) => {
@@ -242,6 +256,7 @@ class DrawingZone extends Component {
   };
 
   handleFinishShape = () => {
+    console.log('ahihi');
     const { myDiagram } = this.state;
     if (myDiagram?.model) {
       let dataJson = myDiagram.model.toJson();
@@ -253,9 +268,9 @@ class DrawingZone extends Component {
   };
 
   cancelSelectedZone = () => {
-    this.handleFinishShape()
-    this.handleDoubleClicked()
-  }
+    this.handleFinishShape();
+    this.handleDoubleClicked();
+  };
 
   onChangeTypeDraw = (type) => {
     const { myDiagram } = this.state;
@@ -327,18 +342,211 @@ class DrawingZone extends Component {
     toolRectange.isEnabled = false;
   };
 
+  loadImage = (...arg) => {
+    let image = arg[0];
+    console.log("ahihi", image);
+
+    let widthRoot = arg[1];
+    let heightRoot = arg[2];
+    let myDiagramDiv = arg[3];
+
+    image.onload = function () {
+      let dimension = {
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      };
+
+      let ratioRoot = widthRoot / heightRoot;
+      // let ratioImg = dimension.width / dimension.height;
+
+      // let widthImg = (widthRoot * ratioImg) / ratioRoot;
+      // let heightImg = (heightRoot * ratioRoot) / ratioImg;
+
+      let widthImg = (heightRoot * dimension.width) / dimension.height;
+      let heightImg = (widthRoot * dimension.height) / dimension.width;
+
+      if (widthImg >= widthRoot) {
+        widthImg = widthRoot;
+      }
+      if (heightImg >= heightRoot) {
+        heightImg = heightRoot;
+      }
+
+      console.log('dimension', dimension.width);
+      console.log('dimension.height', dimension.height);
+
+      console.log("ratioRoot", ratioRoot);
+
+      myDiagramDiv.style.width = `${widthImg}px`;
+      myDiagramDiv.style.height = `${heightImg}px`;
+
+      let newDimension = {
+        width: Math.round(widthImg),
+        height: Math.round(heightImg)
+      }
+
+      localStorage.setItem("dimension", JSON.stringify(newDimension))
+    
+      let nodeData = JSON.parse(localStorage.getItem("nodeData"))
+
+      console.log("dimension", dimension);
+      console.log("nodeData", nodeData);
+    };
+  };
+  fixedBoundsImage = () => {
+    let myDiagramDiv = document.getElementById("myDiagramDiv");
+
+    let widthRoot = myDiagramDiv.offsetWidth;
+    let heightRoot = myDiagramDiv.offsetHeight;
+
+    let image = new Image();
+    let imageSrc = document
+      .getElementById("myDiagramDiv")
+      .style.backgroundImage.replace(/url\((['"])?(.*?)\1\)/gi, "$2")
+      .split(",")[0];
+
+    image.src = imageSrc;
+
+    console.log("image", image);
+    console.log("imageSrc", imageSrc);
+
+    let dimensionFirst = JSON.parse(localStorage.getItem("dimension"))
+    if(!dimensionFirst) {
+        this.loadImage(image, widthRoot, heightRoot, myDiagramDiv);
+    }else {
+
+      let dimension = {
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      };
+
+      // let ratioRoot = widthRoot / heightRoot;
+
+      let widthImg = (heightRoot * dimension.width) / dimension.height;
+      let heightImg = (widthRoot * dimension.height) / dimension.width;
+
+      if (widthImg >= widthRoot) {
+        widthImg = widthRoot;
+      }
+      if (heightImg >= heightRoot) {
+        heightImg = heightRoot;
+      }
+
+      myDiagramDiv.style.width = `${widthImg}px`;
+      myDiagramDiv.style.height = `${heightImg}px`;
+
+      let widthFirst = dimensionFirst.width
+      let heightFist = dimensionFirst.height
+
+      let scale = (widthFirst * heightFist) / (widthImg * heightImg )
+
+      console.log('widthFirst', widthFirst);
+      console.log('heightFist', heightFist);
+
+      console.log('widthImg', widthImg);
+      console.log('heightImg', heightImg);
+
+      console.log('scale', scale);
+
+      if(widthImg > widthFirst || widthImg < widthFirst || heightImg < heightFist || heightImg > heightFist) {
+        
+
+      let nodeData = JSON.parse(localStorage.getItem("nodeData"))
+      if(nodeData?.length > 0) {
+        let newNodeDataArray = []
+        let newNodeData = {}
+        nodeData.map(node => {
+          let strGeo = node.geo 
+          let strLoc = node.loc
+          let strReplace = strGeo.replace(/F|M|L|Z/gi, "");
+
+          let arrGeo = strReplace.split(" ");
+          let arrLoc = strLoc.split(" ");
+
+          arrGeo.shift()
+
+          function chunkArray(myArray, chunkSize) {
+            let results = []
+            while (myArray.length) {
+              results.push(myArray.splice(0, chunkSize))
+            }
+            return results
+          }
+
+          let result = chunkArray(arrGeo, 2)
+
+          let locX = (Number(arrLoc[0]) / scale).toFixed(2);
+          let locY = (Number(arrLoc[1]) / scale).toFixed(2);
+
+          let geoObj = result.map((item) => {
+            let geoX = (Number(item[0]) / scale).toFixed(2);
+            let geoY = (Number(item[1]) / scale).toFixed(2);
+
+            return {
+              x: geoX,
+              y: geoY,
+            };
+          });
+           
+
+          let geoLast = geoObj.pop()
+          let geoFirst = geoObj.shift()
+
+          let geoChildren = ''
+              geoObj.map(geo => 
+                geoChildren += `L${geo.x} ${geo.y} `
+              )
+          
+          let geo = `F M${geoFirst.x} ${geoFirst.y} ${geoChildren}L${geoLast.x} ${geoLast.y}Z` 
+          let loc = `${locX} ${locY}`
+
+          newNodeData = {
+            ...node,
+            geo,
+            loc
+          }
+        })
+
+        newNodeDataArray.push(newNodeData)
+
+        // localStorage.setItem('nodeData', JSON.stringify(newNodeData))
+        // if (myDiagram?.model) {
+        //   let dataJson = myDiagram.model.toJson();
+        //   let dataObj = JSON.parse(dataJson);
+    
+    
+        //   console.log('dataObj.nodeDataArray', dataObj.nodeDataArray);
+        //   // this.props.addZone(dataObj.nodeDataArray);
+        //   // this.configIsEnabled(myDiagram);
+        // }
+        this.props.addZone(newNodeDataArray);
+        console.log('newNodeDataArray=========', newNodeDataArray);
+      }
+      }
+
+      // console.log('widthImg', widthImg);
+      // console.log('heightImg', heightImg);
+    }
+    console.log("widthRoot", widthRoot, "heightRoot", heightRoot);
+  };
+
   render() {
     const { classes } = this.props;
     return (
-      <div id="sample">
+      <div id="sample" className={classes.root}>
         <FormSelected
           onChange={this.onChange}
           onChangeTypeDraw={this.onChangeType}
           changeIsDrawingZone={this.changeIsDrawingZone}
         />
-  
-        <div id="myDiagramDiv" className={classes.myDiagramDiv}></div>
-     
+
+        <div className={classes.rootDiagram}>
+          <div
+            id="myDiagramDiv"
+            className={classes.myDiagramDiv}
+            style={{ backgroundImage: "url(./images/snapshot_1.png)" }}
+          ></div>
+        </div>
       </div>
     );
   }

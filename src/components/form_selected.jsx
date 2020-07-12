@@ -6,11 +6,13 @@ import Autocomplete from "@material-ui/lab/Autocomplete";
 
 const styles = {
   root: {
-    position: "absolute",
-    display: "flex",
-    flexDirection: "column",
-    top: 30,
-    left: 25,
+    width: 400,
+    // position: "absolute",
+    // display: "flex",
+    // flexDirection: "column",
+    // top: 30,
+    // left: 25,
+    padding: 10
   },
   zone: {
     display: "flex",
