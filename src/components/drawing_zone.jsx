@@ -2,14 +2,13 @@ import React, { Component } from "react";
 import { withStyles } from "@material-ui/styles";
 import * as go from "gojs";
 import { connect } from "react-redux";
-import { Button } from "@material-ui/core";
+import { Typography, Button } from "@material-ui/core"
 
 import GeometryReshapingTool from "./../lib/GeometryReshapingTool";
 import PolygonDrawingTool from "./../lib/PolygonDrawingTool";
 import DragCreatingTool from "./../lib/DragCreatingTool";
 import FormSelected from "./form_selected";
-import ShowGeo from "./show_geo";
-import GeoFormat from "./geo_format";
+
 import {
   loadGeo,
   addZone,
@@ -17,16 +16,31 @@ import {
   selectedZone,
   unselectedZone,
 } from "./../redux/actions/geo";
-import _ from "lodash";
 
 const styles = {
+  root: {
+    display: "flex",
+    width: "100%",
+    height: "100vh",
+    overflow: "hidden",
+  },
+  rootDiagram: {
+    width: "100%",
+    height: "100%",
+    background: "black",
+  },
+  left: {},
+  boxArrow: {
+    height: 100
+  },
   myDiagramDiv: {
     border: "solid 1px black",
-    width: "calc(2560px / 3)",
-    height: "calc(1920px / 3)",
-    margin: "0 auto",
-    backgroundImage: "url(./images/test.png)",
-    backgroundSize: "cover",
+    width: "100%",
+    height: "100%",
+    // backgroundImage: "url(./images/snapshot_1.png)",
+    backgroundSize: "contain",
+    backgroundRepeat: "no-repeat",
+    overflow: "hidden",
   },
   boxButton: {
     position: "absolute",
@@ -35,6 +49,12 @@ const styles = {
   },
   button: {
     textTransform: "lowercase",
+  },
+  zone: {
+    display: "flex",
+    justifyContent: "space-between",
+    margin: "10px 0",
+    padding: "0 10px"
   },
 };
 
@@ -46,6 +66,7 @@ class DrawingZone extends Component {
       $: "",
       typeDrawing: "polygon",
       color: "red",
+      isArrow: false
     };
   }
 
@@ -60,18 +81,37 @@ class DrawingZone extends Component {
 
   init() {
     let $ = go.GraphObject.make;
-    let width = 2560 / 3;
-    let height = 1920 / 3;
+    let width = 2560 / 2;
+    let height = 1920 / 2;
     const myDiagram = $(go.Diagram, "myDiagramDiv", {
       fixedBounds: new go.Rect(0, 0, width, height),
       allowHorizontalScroll: false,
       allowVerticalScroll: false,
-      allowZoom: true,
+      allowZoom: false,
+
+      "draggingTool.dragsLink": true,
+      "relinkingTool.isUnconnectedLinkValid": true,
+      "relinkingTool.fromHandleArchetype": $(go.Shape, "Diamond", {
+        segmentIndex: 0,
+        cursor: "pointer",
+        desiredSize: new go.Size(8, 8),
+        fill: "tomato",
+        stroke: "darkred",
+      }),
+      "relinkingTool.toHandleArchetype": $(go.Shape, "Diamond", {
+        segmentIndex: -1,
+        cursor: "pointer",
+        desiredSize: new go.Size(8, 8),
+        fill: "darkred",
+        stroke: "tomato",
+      }),
+
+      "undoManager.isEnabled": true,
     });
-    myDiagram.toolManager.mouseDownTools.insertAt(
-      3,
-      new GeometryReshapingTool()
-    );
+
+    let toolResizing = myDiagram.toolManager.resizingTool;
+    let toolGeomytry = new GeometryReshapingTool();
+    myDiagram.toolManager.mouseDownTools.insertAt(3, toolGeomytry);
 
     myDiagram.addDiagramListener(
       "BackgroundDoubleClicked",
@@ -85,7 +125,6 @@ class DrawingZone extends Component {
         {
           dragComputation: this.stayInFixedArea,
           click: this.handleSelectedZone,
-          reshapable: this.stayInFixedArea,
         },
         new go.Binding("location", "loc", go.Point.parse).makeTwoWay(
           go.Point.stringify
@@ -97,11 +136,13 @@ class DrawingZone extends Component {
             go.Adornment,
             "Auto",
             $(go.Shape, { stroke: "dodgerblue", fill: "transparents" }),
-            $(go.Placeholder, { margin: 0 })
+            $(go.Placeholder, { margin: -1 })
           ),
         },
         { resizable: false, resizeObjectName: "SHAPE" },
         { rotatable: false, rotateObjectName: "SHAPE" },
+        { reshapable: true },
+
         $(
           go.Shape,
           {
@@ -112,7 +153,6 @@ class DrawingZone extends Component {
             maxSize: new go.Size(width, height),
             minSize: new go.Size(20, 20),
           },
-
           new go.Binding("desiredSize", "size", go.Size.parse).makeTwoWay(
             go.Size.stringify
           ),
@@ -125,8 +165,6 @@ class DrawingZone extends Component {
       )
     );
 
-    myDiagram.commandHandler.doKeyUp = this.handleFinishShape;
-
     //handle drawing polygon
     let tool = new PolygonDrawingTool();
     tool.archetypePartData = {
@@ -134,7 +172,6 @@ class DrawingZone extends Component {
       stroke: "red",
       strokeWidth: 3,
       typeZone: null,
-      status: 0,
       category: "PolygonDrawing",
     };
     tool.doStop = this.handleFinishShape;
@@ -144,8 +181,6 @@ class DrawingZone extends Component {
     myDiagram.toolManager.mouseDownTools.insertAt(0, tool);
 
     // handle drawing rectangle
-    //  myDiagram.currentTool = new DragCreatingTool()
-    //  myDiagram.currentTool.doStop = this.test
     myDiagram.nodeTemplate = $(
       go.Node,
       "Auto",
@@ -180,7 +215,7 @@ class DrawingZone extends Component {
         box: $(
           go.Part,
           $(go.Shape, {
-            // name: "SHAPE",
+            name: "SHAPE",
             fill: "transparent",
             stroke: "",
             strokeWidth: 2,
@@ -190,27 +225,147 @@ class DrawingZone extends Component {
           category: "Rectangle",
           stroke: "red",
           fill: "transparent",
-          typeZone: "",
-          status: 0,
+          typeZone: null,
           strokeWidth: 2,
         },
         doStop: this.handleFinishShape,
       })
     );
 
+    // handle task drawing a line arrow
+
+    myDiagram.addDiagramListener("Modified", function (e) {
+      var button = document.getElementById("SaveButton");
+      if (button) button.disabled = !myDiagram.isModified;
+      var idx = document.title.indexOf("*");
+      if (myDiagram.isModified) {
+        if (idx < 0) document.title += "*";
+      } else {
+        if (idx >= 0) document.title = document.title.substr(0, idx);
+      }
+    });
+
+    var nodeSelectionAdornmentTemplate = $(
+      go.Adornment,
+      "Auto",
+      $(go.Shape, {
+        fill: null,
+        stroke: "deepskyblue",
+        strokeWidth: 1.5,
+        strokeDashArray: [4, 2],
+      }),
+      $(go.Placeholder)
+    );
+
+    var nodeResizeAdornmentTemplate = $(go.Adornment, "Spot");
+
+    function showSmallPorts(node, show) {
+      node.ports.each(function (port) {
+        if (port.portId !== "") {
+          // don't change the default port, which is the big shape
+          port.fill = show ? "rgba(0,0,0,.3)" : null;
+        }
+      });
+    }
+
+    var linkSelectionAdornmentTemplate = $(
+      go.Adornment,
+      "Link",
+      $(
+        go.Shape,
+        // isPanelMain declares that this Shape shares the Link.geometry
+        { isPanelMain: true, fill: null, stroke: "deepskyblue", strokeWidth: 0 }
+      ) // use selection object's strokeWidth
+    );
+
+    myDiagram.linkTemplate = $(
+      go.Link, // the whole link panel
+      { relinkableFrom: true, relinkableTo: true, reshapable: true },
+      new go.Binding("points").makeTwoWay(),
+      $(
+        go.Shape, // the link path shape
+        { isPanelMain: true, strokeWidth: 2 }
+      ),
+      $(
+        go.Shape, // the arrowhead
+        { toArrow: "Standard", stroke: null }
+      )
+    );
+
+    var myPalette = $(
+      go.Palette,
+      "myPaletteDiv", // must name or refer to the DIV HTML element
+      {
+        // simplify the link template, just in this Palette
+        linkTemplate: $(
+          go.Link,
+          {
+            locationSpot: go.Spot.Center,
+            selectionAdornmentTemplate: $(
+              go.Adornment,
+              "Link",
+              { locationSpot: go.Spot.Center },
+              $(go.Shape, {
+                isPanelMain: true,
+                fill: null,
+                stroke: "deepskyblue",
+                strokeWidth: 0,
+              }),
+              $(
+                go.Shape, // the arrowhead
+                { toArrow: "Standard", stroke: null }
+              )
+            ),
+          },
+
+          new go.Binding("points"),
+          $(
+            go.Shape, // the link path shape
+            { isPanelMain: true, strokeWidth: 2 }
+          ),
+          $(
+            go.Shape, // the arrowhead
+            { toArrow: "Standard", stroke: null }
+          )
+        ),
+        model: new go.GraphLinksModel(
+          [],
+          [
+            // the Palette also has a disconnected Link, which the user can drag-and-drop
+            {
+              points: new go.List(/*go.Point*/).addAll([
+                new go.Point(0, 0),
+                new go.Point(30, 0),
+                new go.Point(60, 0),
+              ]),
+            },
+          ]
+        ),
+      }
+    );
+
+    // end handle drawing a line arrow
+
+    myDiagram.commandHandler.doKeyUp = this.cancelSelectedZone;
+    toolGeomytry.doStop = this.handleFinishShape;
+    toolResizing.doStop = this.handleFinishShape;
+
     this.setState({
       myDiagram,
       $,
     });
 
-    this.loadGeo(myDiagram);
     this.configIsEnabled(myDiagram);
+    this.loadGeo(myDiagram);
+
+    this.fixedBoundsImage(myDiagram);
   }
 
   loadGeo = (myDiagram) => {
     const { geoArray } = this.props;
     if (myDiagram?.toolManager) {
       try {
+        myDiagram.initialPosition = go.Point.parse(geoArray.position || "0 0");
         myDiagram.model = go.Model.fromJson(geoArray.model);
         myDiagram.model.undoManager.isEnabled = true;
       } catch (ex) {
@@ -219,7 +374,7 @@ class DrawingZone extends Component {
     }
   };
 
-  stayInFixedArea(part, pt, gridpt) {
+  stayInFixedArea = (part, pt, gridpt) => {
     let diagram = part.diagram;
     if (diagram === "") return pt;
     let v = diagram.documentBounds.copy();
@@ -228,12 +383,16 @@ class DrawingZone extends Component {
     let loc = part.location;
     let x = Math.max(v.x, Math.min(pt.x, v.right - b.width)) + (loc.x - b.x);
     let y = Math.max(v.y, Math.min(pt.y, v.bottom - b.height)) + (loc.y - b.y);
+
+    this.handleFinishShape();
+
     return new go.Point(x, y);
-  }
+  };
 
   handleSelectedZone = (e, obj) => {
     let itemNode = obj.jb;
     this.props.selectedZone(itemNode);
+    // console.log('itemNode', itemNode);
   };
 
   handleDoubleClicked = () => {
@@ -241,15 +400,20 @@ class DrawingZone extends Component {
   };
 
   handleFinishShape = () => {
+    console.log("ahihi");
     const { myDiagram } = this.state;
     if (myDiagram?.model) {
       let dataJson = myDiagram.model.toJson();
       let dataObj = JSON.parse(dataJson);
 
       this.props.addZone(dataObj.nodeDataArray);
-      this.props.unselectedZone();
       this.configIsEnabled(myDiagram);
     }
+  };
+
+  cancelSelectedZone = () => {
+    this.handleFinishShape();
+    this.handleDoubleClicked();
   };
 
   onChangeTypeDraw = (type) => {
@@ -267,98 +431,6 @@ class DrawingZone extends Component {
       }
     }
   };
-
-  // handleFormatGeo = (nodeDataArray) => {
-  //   const data = this.props.geoArray;
-
-  //   // console.log("data format geo", this.props.geoArray);
-
-  //   let geoArr = [];
-
-  //   if (data.model.nodeDataArray.length > 0) {
-  //     data.model.nodeDataArray.map((item, index) => {
-  //       if (item.category === "PolygonDrawing") {
-  //         let strGeo = item.geo;
-  //         let strLoc = item.loc;
-  //         let strReplace = strGeo.replace(/F|M|L|Z/gi, "");
-  //         let arr = strReplace.split(" ");
-  //         let arrLoc = strLoc.split(" ");
-  //         arr.shift();
-
-  //         function chunkArray(myArr, chunk_size) {
-  //           let results = [];
-
-  //           while (myArr.length) {
-  //             results.push(myArr.splice(0, chunk_size));
-  //           }
-
-  //           return results;
-  //         }
-  //         let result = chunkArray(arr, 2);
-
-  //         let locX = Number(arrLoc[0]).toFixed(0);
-  //         let locY = Number(arrLoc[1]).toFixed(0);
-
-  //         let geoObjs = result.map((item) => {
-  //           let geoX = Number(item[0]).toFixed(0);
-  //           let geoY = Number(item[1]).toFixed(0);
-  //           return {
-  //             x: Number(geoX) + Number(locX),
-  //             y: Number(geoY) + Number(locY),
-  //           };
-  //         });
-
-  //         geoArr.push(geoObjs);
-
-  //         return true;
-  //       } else if (item.category === "Rectangle") {
-  //         let { size, loc } = item;
-  //         let arrSize = size.split(" ");
-  //         let arrLoc = loc.split(" ");
-
-  //         let x1 = Number(arrLoc[0]).toFixed(0);
-  //         let y1 = Number(arrLoc[1]).toFixed(0);
-  //         let x2 = (Number(x1) + Number(arrSize[0])).toFixed(0);
-  //         let y2 = y1;
-  //         let x3 = x2;
-  //         let y3 = (Number(y1) + Number(arrSize[1])).toFixed(0);
-  //         let x4 = x1;
-  //         let y4 = y3;
-
-  //         let geoRectangle = [
-  //           {
-  //             x: x1,
-  //             y: y1,
-  //           },
-  //           {
-  //             x: x2,
-  //             y: y2,
-  //           },
-  //           {
-  //             x: x3,
-  //             y: y3,
-  //           },
-  //           {
-  //             x: x4,
-  //             y: y4,
-  //           },
-  //         ];
-
-  //         geoArr.push(geoRectangle);
-
-  //         item.geo = `F M${x1} ${y1} L${x2} ${y2} L${x3} ${y3} L${x4} ${y4}z`;
-  //       }
-  //     });
-  //   }
-
-  //   // if (nodeDataArray.length < 1) {
-  //   //   this.props.formatGeo([]);
-  //   // }
-
-  //   // if (geoArr.length > 0) {
-  //   //   this.props.formatGeo(geoArr);
-  //   // }
-  // };
 
   changeColorType = () => {
     const { myDiagram, typeDrawing, color } = this.state;
@@ -388,9 +460,8 @@ class DrawingZone extends Component {
     });
   };
 
-  changeIsEnabled = (typeZone, id) => {
+  changeIsDrawingZone = (typeZone, id) => {
     const { myDiagram, typeDrawing } = this.state;
-    console.log("typeDrawing", typeDrawing);
 
     if (typeDrawing === "rectangle") {
       let toolRectange = myDiagram.toolManager.mouseMoveTools.elt(2);
@@ -415,45 +486,227 @@ class DrawingZone extends Component {
     toolRectange.isEnabled = false;
   };
 
-  updateGeo = () => {
-    const { myDiagram } = this.state;
-    if (myDiagram?.model) {
-      let dataJson = myDiagram.model.toJson();
-      let dataObj = JSON.parse(dataJson);
+  loadImage = (...arg) => {
+    let image = arg[0];
+    console.log("ahihi", image);
 
-      this.props.addZone(dataObj.nodeDataArray);
+    let widthRoot = arg[1];
+    let heightRoot = arg[2];
+    let myDiagramDiv = arg[3];
 
-      this.props.unselectedZone();
-      this.configIsEnabled(myDiagram);
-    }
+    image.onload = function () {
+      let dimension = {
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      };
+
+      let ratioRoot = widthRoot / heightRoot;
+      // let ratioImg = dimension.width / dimension.height;
+
+      // let widthImg = (widthRoot * ratioImg) / ratioRoot;
+      // let heightImg = (heightRoot * ratioRoot) / ratioImg;
+
+      let widthImg = (heightRoot * dimension.width) / dimension.height;
+      let heightImg = (widthRoot * dimension.height) / dimension.width;
+
+      if (widthImg >= widthRoot) {
+        widthImg = widthRoot;
+      }
+      if (heightImg >= heightRoot) {
+        heightImg = heightRoot;
+      }
+
+      console.log("dimension", dimension.width);
+      console.log("dimension.height", dimension.height);
+
+      console.log("ratioRoot", ratioRoot);
+
+      myDiagramDiv.style.width = `${widthImg}px`;
+      myDiagramDiv.style.height = `${heightImg}px`;
+
+      let newDimension = {
+        width: Math.round(widthImg),
+        height: Math.round(heightImg),
+      };
+
+      localStorage.setItem("dimension", JSON.stringify(newDimension));
+
+      let nodeData = JSON.parse(localStorage.getItem("nodeData"));
+
+      console.log("dimension", dimension);
+      console.log("nodeData", nodeData);
+    };
   };
+  fixedBoundsImage = () => {
+    let myDiagramDiv = document.getElementById("myDiagramDiv");
+
+    let widthRoot = myDiagramDiv.offsetWidth;
+    let heightRoot = myDiagramDiv.offsetHeight;
+
+    let image = new Image();
+    let imageSrc = document
+      .getElementById("myDiagramDiv")
+      .style.backgroundImage.replace(/url\((['"])?(.*?)\1\)/gi, "$2")
+      .split(",")[0];
+
+    image.src = imageSrc;
+
+    console.log("image", image);
+    console.log("imageSrc", imageSrc);
+
+    let dimensionFirst = JSON.parse(localStorage.getItem("dimension"));
+    if (!dimensionFirst) {
+      this.loadImage(image, widthRoot, heightRoot, myDiagramDiv);
+    } else {
+      let dimension = {
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      };
+
+      // let ratioRoot = widthRoot / heightRoot;
+
+      let widthImg = (heightRoot * dimension.width) / dimension.height;
+      let heightImg = (widthRoot * dimension.height) / dimension.width;
+
+      if (widthImg >= widthRoot) {
+        widthImg = widthRoot;
+      }
+      if (heightImg >= heightRoot) {
+        heightImg = heightRoot;
+      }
+
+      myDiagramDiv.style.width = `${widthImg}px`;
+      myDiagramDiv.style.height = `${heightImg}px`;
+
+      let widthFirst = dimensionFirst.width;
+      let heightFist = dimensionFirst.height;
+
+      let scale = (widthFirst * heightFist) / (widthImg * heightImg);
+
+      console.log("widthFirst", widthFirst);
+      console.log("heightFist", heightFist);
+
+      console.log("widthImg", widthImg);
+      console.log("heightImg", heightImg);
+
+      console.log("scale", scale);
+
+      if (
+        widthImg > widthFirst ||
+        widthImg < widthFirst ||
+        heightImg < heightFist ||
+        heightImg > heightFist
+      ) {
+        let nodeData = JSON.parse(localStorage.getItem("nodeData"));
+        if (nodeData?.length > 0) {
+          let newNodeDataArray = [];
+          let newNodeData = {};
+          nodeData.map((node) => {
+            let strGeo = node.geo;
+            let strLoc = node.loc;
+            let strReplace = strGeo.replace(/F|M|L|Z/gi, "");
+
+            let arrGeo = strReplace.split(" ");
+            let arrLoc = strLoc.split(" ");
+
+            arrGeo.shift();
+
+            function chunkArray(myArray, chunkSize) {
+              let results = [];
+              while (myArray.length) {
+                results.push(myArray.splice(0, chunkSize));
+              }
+              return results;
+            }
+
+            let result = chunkArray(arrGeo, 2);
+
+            let locX = (Number(arrLoc[0]) / scale).toFixed(2);
+            let locY = (Number(arrLoc[1]) / scale).toFixed(2);
+
+            let geoObj = result.map((item) => {
+              let geoX = (Number(item[0]) / scale).toFixed(2);
+              let geoY = (Number(item[1]) / scale).toFixed(2);
+
+              return {
+                x: geoX,
+                y: geoY,
+              };
+            });
+
+            let geoLast = geoObj.pop();
+            let geoFirst = geoObj.shift();
+
+            let geoChildren = "";
+            geoObj.map((geo) => (geoChildren += `L${geo.x} ${geo.y} `));
+
+            let geo = `F M${geoFirst.x} ${geoFirst.y} ${geoChildren}L${geoLast.x} ${geoLast.y}Z`;
+            let loc = `${locX} ${locY}`;
+
+            newNodeData = {
+              ...node,
+              geo,
+              loc,
+            };
+          });
+
+          newNodeDataArray.push(newNodeData);
+
+          // localStorage.setItem('nodeData', JSON.stringify(newNodeData))
+          // if (myDiagram?.model) {
+          //   let dataJson = myDiagram.model.toJson();
+          //   let dataObj = JSON.parse(dataJson);
+
+          //   console.log('dataObj.nodeDataArray', dataObj.nodeDataArray);
+          //   // this.props.addZone(dataObj.nodeDataArray);
+          //   // this.configIsEnabled(myDiagram);
+          // }
+          this.props.addZone(newNodeDataArray);
+          console.log("newNodeDataArray=========", newNodeDataArray);
+        }
+      }
+
+      // console.log('widthImg', widthImg);
+      // console.log('heightImg', heightImg);
+    }
+    console.log("widthRoot", widthRoot, "heightRoot", heightRoot);
+  };
+
+  handleIsDrawingArrow = () => {
+    this.setState({
+      isArrow: true
+    });
+  }
 
   render() {
     const { classes } = this.props;
+    const { isArrow } = this.state
     return (
-      <div id="sample">
-        <FormSelected
+      <div id="sample" className={classes.root}>
+       <div className={classes.left}>
+       <FormSelected
           onChange={this.onChange}
           onChangeTypeDraw={this.onChangeType}
-          changeIsEnabled={this.changeIsEnabled}
+          changeIsDrawingZone={this.changeIsDrawingZone}
         />
-        <div className={classes.boxButton}>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={this.updateGeo}
-            className={classes.button}
-          >
-            Cập nhật
-          </Button>
+
+        <div className={classes.zone}>
+        <Typography>Hướng đi</Typography>
+        <Button variant='contained' color="primary" className={classes.button}>Chọn</Button>
+
         </div>
-        <div id="myDiagramDiv" className={classes.myDiagramDiv}></div>
-        <div
-          id="goog-gt-tt"
-          className="skiptranslate"
-          dir="ltr"
-          style={{ display: "none" }}
-        ></div>
+
+        <div id="myPaletteDiv" className={classes.boxArrow}></div>
+       
+       </div>
+
+        <div className={classes.rootDiagram}>
+          <div
+            id="myDiagramDiv"
+            className={classes.myDiagramDiv}
+            style={{ backgroundImage: "url(./images/snapshot_1.png)" }}
+          ></div>
+        </div>
       </div>
     );
   }

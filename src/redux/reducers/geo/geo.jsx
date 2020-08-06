@@ -1,5 +1,4 @@
 import * as types from "./../../actions_type/geo_type";
-import _ from "lodash";
 
 let nodeData = localStorage.getItem("nodeData");
 const initialState = {
@@ -39,12 +38,13 @@ export const loadGeo = (state = initialState, action) => {
 
         action.payload.map((node) => {
           if (node.typeZone === typeZone) {
-            node.status = 2;
 
             control.id = id;
             control.status = 2;
             control.typeZone = typeZone;
           }
+
+          return true
         });
       } else {
         control.id = null;
@@ -69,7 +69,7 @@ export const loadGeo = (state = initialState, action) => {
         ...state,
         selected: {
           typeZone: action.payload.typeZone,
-        },
+        }
       };
     case types.UNSELECTED_ZONE:
       return {
